@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Indic ASR</title>
+</head>
+<body>
+    <h1>Upload Audio for Transcription</h1>
+    <form id="upload-form">
+        <label for="language">Select Language:</label>
+        <select name="language" id="language">
+            <option value="bn">Bengali</option>
+            <option value="hi">Hindi</option>
+            <option value="en">English</option>
+            </select>
+        <br><br>
+        <input type="file" name="audio" id="audio-file" required>
+        <br><br>
+        <button type="submit">Transcribe</button>
+    </form>
+    <hr>
+    <h2>Status</h2>
+    <div id="status">Ready</div>
+    <hr>
+    <h2>Result</h2>
+    <div id="result" style="white-space: pre-wrap; background-color: #f4f4f4; padding: 10px; border-radius: 5px;"></div>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+        const form = document.getElementById('upload-form');
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const language = document.getElementById('language').value;
+            const audioFile = document.getElementById('audio-file').files[0];
+            
+            if (!audioFile) {
+                statusDiv.innerText = 'Please select an audio file.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('language', language);
+            formData.append('audio', audioFile);
+
+            statusDiv.innerText = 'Uploading...';
+            resultDiv.innerText = '';
+
+            try {
+                // 1. Start the transcription task
+                const response = await axios.post('/transcribe', formData);
+                const taskId = response.data.task_id;
+                statusDiv.innerText = `Task accepted (ID: ${taskId}). Waiting for worker...`;
+
+                // 2. Start polling for the result
+                pollTaskStatus(taskId);
+
+            } catch (error) {
+                statusDiv.innerText = `Error: ${error.response.data.message || 'Something went wrong.'}`;
+            }
+        });
+
+        function pollTaskStatus(taskId) {
+            // Set up an interval to check the status every 3 seconds
+            const intervalId = setInterval(async () => {
+                try {
+                    const response = await axios.get(`/status/${taskId}`);
+                    const state = response.data.state;
+
+                    if (state === 'SUCCESS') {
+                        // Task is done! Stop polling and show result.
+                        clearInterval(intervalId);
+                        statusDiv.innerText = '✅ Transcription Complete!';
+                        // The actual result from the worker is nested
+                        const transcription = response.data.result.transcription;
+                        resultDiv.innerText = transcription;
+                    } else if (state === 'FAILURE') {
+                        // Task failed. Stop polling and show error.
+                        clearInterval(intervalId);
+                        statusDiv.innerText = '❌ Task Failed.';
+                        resultDiv.innerText = response.data.error;
+                    } else {
+                        // Task is still pending or processing.
+                        statusDiv.innerText = `Processing... (State: ${state})`;
+                    }
+                } catch (error) {
+                    // Stop polling if we can't even reach the server
+                    clearInterval(intervalId);
+                    statusDiv.innerText = 'Error polling for status.';
+                }
+            }, 3000); // Poll every 3 seconds
+        }
+    </script>
+</body>
+</html>

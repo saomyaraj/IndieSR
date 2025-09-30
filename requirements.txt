@@ -1,0 +1,8 @@
+# requirements.txt
+fastapi
+uvicorn[standard]
+python-multipart
+celery
+pika # RabbitMQ driver, often needed by Celery
+pymongo
+jinja2 # For serving the HTML template
