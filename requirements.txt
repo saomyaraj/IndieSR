@@ -6,3 +6,10 @@ celery
 pika # RabbitMQ driver, often needed by Celery
 pymongo
 jinja2 # For serving the HTML template
+numpy
+lightning
+hydra-core
+nemo_toolkit
+torch
+lhotse
+jiwer
